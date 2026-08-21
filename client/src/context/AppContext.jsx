@@ -11,7 +11,7 @@ export const AppProvider = ({ children }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [suggestions, setSuggestions] = useState({ historyRecommendations: [], seasonalOffers: [], substitutes: [] });
 
-  const API_BASE = "http://localhost:5000/api";
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
 
   // 1. Fetch Shopping List on boot
   const fetchList = async () => {
