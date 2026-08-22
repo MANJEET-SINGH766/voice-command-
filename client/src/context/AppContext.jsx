@@ -92,13 +92,14 @@ export const AppProvider = ({ children }) => {
   };
 
   // 3. Toggle Complete / Update Qty
-  const toggleItemCompleted = async (id, isCompleted) => {
+  // 3. Toggle Complete / Update Qty
+  const updateItem = async (id, updates) => {
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/list/item/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isCompleted })
+        body: JSON.stringify(updates)
       });
       const data = await res.json();
       if (res.ok) {
@@ -109,6 +110,10 @@ export const AppProvider = ({ children }) => {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const toggleItemCompleted = async (id, isCompleted) => {
+    await updateItem(id, { isCompleted });
   };
 
   // 4. Delete Item
@@ -279,6 +284,7 @@ export const AppProvider = ({ children }) => {
         toggleDietaryPreference,
         addItem,
         toggleItemCompleted,
+        updateItem,
         deleteItem,
         clearList,
         processVoiceCommand,

@@ -16,7 +16,7 @@ const categoryEmojis = {
 };
 
 function ShoppingList() {
-  const { shoppingList, toggleItemCompleted, deleteItem, clearList, loading } = useApp();
+  const { shoppingList, toggleItemCompleted, updateItem, deleteItem, clearList, loading } = useApp();
 
   if (shoppingList.length === 0) {
     return (
@@ -156,19 +156,65 @@ function ShoppingList() {
                   </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-                  {/* Quantity Indicator */}
-                  <span style={{ 
-                    fontSize: "0.85rem", 
-                    fontWeight: "600",
-                    background: "rgba(0, 242, 254, 0.05)",
-                    border: "1px solid rgba(0, 242, 254, 0.15)",
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    color: "var(--color-accent)"
+                 <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                  {/* Interactive Quantity Adjustment */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    background: "rgba(14, 165, 233, 0.05)",
+                    border: "1px solid rgba(14, 165, 233, 0.15)",
+                    padding: "2px 6px",
+                    borderRadius: "4px"
                   }}>
-                    Qty: {item.quantity}
-                  </span>
+                    <button
+                      onClick={() => updateItem(item._id, { quantity: Math.max(1, item.quantity - 1) })}
+                      disabled={item.quantity <= 1}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--color-accent)",
+                        fontWeight: "700",
+                        fontSize: "0.95rem",
+                        cursor: "pointer",
+                        width: "16px",
+                        height: "16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        opacity: item.quantity <= 1 ? 0.3 : 1
+                      }}
+                    >
+                      -
+                    </button>
+                    <span style={{
+                      fontSize: "0.85rem",
+                      fontWeight: "700",
+                      color: "var(--color-accent)",
+                      minWidth: "16px",
+                      textAlign: "center"
+                    }}>
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => updateItem(item._id, { quantity: item.quantity + 1 })}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--color-accent)",
+                        fontWeight: "700",
+                        fontSize: "0.95rem",
+                        cursor: "pointer",
+                        width: "16px",
+                        height: "16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
 
                   {/* Delete Button */}
                   <button
