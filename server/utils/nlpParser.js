@@ -323,10 +323,13 @@ export async function parseCommand(text, language = "en-US") {
   
   let textToParse = text;
 
-  // If language selection is Hindi or text contains Devanagari script, normalize
-  if (language === "hi-IN" || /[\u0900-\u097F]/.test(text)) {
+  // Auto-detect Hinglish words or Devanagari script
+  const isDevanagari = /[\u0900-\u097F]/.test(text);
+  const containsHinglishKeywords = /\b(?:jodo|hatao|chahiye|lao|karo|badlo|dikhao|dhundho|saaf|doodh|seb|kela|paani|aloo|anda|ande|sabzi|chai|cheeni|makkhan|roti|namak|tel|kam)\b/i.test(text);
+
+  if (language === "hi-IN" || isDevanagari || containsHinglishKeywords) {
     textToParse = normalizeHindi(text);
-    console.log(`[NLP Parser] Hindi input normalized to: "${textToParse}"`);
+    console.log(`[NLP Parser] Auto-detected Hindi/Hinglish. Input normalized to: "${textToParse}"`);
   }
 
   // 1. Try local regex parsing first

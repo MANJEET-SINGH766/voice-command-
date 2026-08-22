@@ -8,7 +8,7 @@ import ShoppingList from "./components/ShoppingList";
 import HelpDrawer from "./components/HelpDrawer";
 
 function AppContent() {
-  const { error } = useApp();
+  const { error, dietaryPreferences, toggleDietaryPreference } = useApp();
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   return (
@@ -93,6 +93,47 @@ function AppContent() {
               <span>Connected to MongoDB Backend!</span>
             </>
           )}
+        </div>
+
+        {/* Dietary Preferences settings */}
+        <div style={{
+          marginTop: "20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          borderTop: "1px solid var(--border-glass)",
+          paddingTop: "15px",
+          alignItems: "center"
+        }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-secondary)", marginBottom: "4px" }}>
+            Dietary & Health Filters
+          </span>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            {["vegan", "glutenFree", "organic"].map((pref) => {
+              const isActive = dietaryPreferences[pref];
+              const label = pref === "glutenFree" ? "Gluten-Free" : pref.charAt(0).toUpperCase() + pref.slice(1);
+              return (
+                <button
+                  key={pref}
+                  onClick={() => toggleDietaryPreference(pref)}
+                  style={{
+                    background: isActive ? "var(--color-accent-gradient)" : "rgba(255, 255, 255, 0.05)",
+                    border: `1px solid ${isActive ? "var(--color-accent)" : "var(--border-glass)"}`,
+                    borderRadius: "20px",
+                    padding: "6px 14px",
+                    color: isActive ? "#000" : "var(--text-secondary)",
+                    fontWeight: "600",
+                    fontSize: "0.75rem",
+                    cursor: "pointer",
+                    transition: "var(--transition-smooth)",
+                    boxShadow: isActive ? "var(--shadow-neon)" : "none"
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

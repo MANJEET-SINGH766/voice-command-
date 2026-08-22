@@ -5,8 +5,11 @@ export function useSpeech() {
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(true);
+  const [analyser, setAnalyser] = useState(null);
 
   const recognitionRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     // Check browser compatibility
@@ -26,6 +29,20 @@ export function useSpeech() {
     recognitionRef.current = recognition;
   }, []);
 
+  const cleanupAudio = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      if (audioContextRef.current.state !== "closed") {
+        audioContextRef.current.close();
+      }
+      audioContextRef.current = null;
+    }
+    setAnalyser(null);
+  }, []);
+
   const startListening = useCallback((language = "en-US") => {
     if (!isSupported || !recognitionRef.current) {
       setError("Speech recognition is not supported in this browser.");
@@ -39,8 +56,27 @@ export function useSpeech() {
     recognitionRef.current.lang = language;
 
     // Hook events
-    recognitionRef.current.onstart = () => {
+    recognitionRef.current.onstart = async () => {
       setIsListening(true);
+      
+      // Start media stream for visualizer
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContextClass();
+        audioContextRef.current = audioCtx;
+        
+        const src = audioCtx.createMediaStreamSource(stream);
+        const analyserNode = audioCtx.createAnalyser();
+        analyserNode.fftSize = 128; // Small fftSize for cleaner waves
+        src.connect(analyserNode);
+        
+        setAnalyser(analyserNode);
+      } catch (err) {
+        console.warn("Failed to initialize visualizer media stream:", err);
+      }
     };
 
     recognitionRef.current.onresult = (event) => {
@@ -62,6 +98,7 @@ export function useSpeech() {
     recognitionRef.current.onerror = (event) => {
       console.error("Speech Recognition Error:", event.error);
       setIsListening(false);
+      cleanupAudio();
       
       switch (event.error) {
         case "not-allowed":
@@ -83,6 +120,7 @@ export function useSpeech() {
 
     recognitionRef.current.onend = () => {
       setIsListening(false);
+      cleanupAudio();
     };
 
     try {
@@ -91,14 +129,15 @@ export function useSpeech() {
       console.error("Recognition start failed:", err);
       setError("Unable to start speech recognition. It may already be running.");
     }
-  }, [isSupported]);
+  }, [isSupported, cleanupAudio]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       setIsListening(false);
+      cleanupAudio();
     }
-  }, []);
+  }, [cleanupAudio]);
 
   const resetTranscript = useCallback(() => {
     setTranscript("");
@@ -110,8 +149,9 @@ export function useSpeech() {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
       }
+      cleanupAudio();
     };
-  }, []);
+  }, [cleanupAudio]);
 
   return {
     isListening,
@@ -121,6 +161,7 @@ export function useSpeech() {
     startListening,
     stopListening,
     resetTranscript,
-    setError
+    setError,
+    analyser
   };
 }

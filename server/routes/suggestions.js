@@ -47,11 +47,19 @@ router.get("/dashboard", async (req, res) => {
     else if (month >= 5 && month <= 7) currentSeason = "summer";
     else currentSeason = "autumn";
 
-    // Query catalog for seasonal items not on active list
-    const seasonalProducts = await Product.find({
+    // Query catalog for seasonal items not on active list with optional dietary filter
+    const { dietary } = req.query;
+    const seasonalQuery = {
       seasons: currentSeason,
       name: { $nin: activeItems.map(i => i.name) }
-    }).limit(4);
+    };
+
+    if (dietary) {
+      const dietaryArray = dietary.split(",").map(t => t.trim().toLowerCase());
+      seasonalQuery.dietary = { $all: dietaryArray };
+    }
+
+    const seasonalProducts = await Product.find(seasonalQuery).limit(4);
 
     const seasonalOffers = seasonalProducts.map(prod => ({
       name: prod.name,

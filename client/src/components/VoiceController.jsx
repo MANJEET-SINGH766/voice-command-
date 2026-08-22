@@ -12,8 +12,65 @@ function VoiceController() {
     startListening,
     stopListening,
     resetTranscript,
-    setError: setSpeechError
+    setError: setSpeechError,
+    analyser
   } = useSpeech();
+
+  const canvasRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!analyser || !isListening) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    let animationFrameId;
+
+    const draw = () => {
+      if (!analyser || !isListening) return;
+      
+      animationFrameId = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#0ea5e9";
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = "#0ea5e9";
+      ctx.beginPath();
+
+      const sliceWidth = canvas.width / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * canvas.height) / 2;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+
+        x += sliceWidth;
+      }
+
+      ctx.lineTo(canvas.width, canvas.height / 2);
+      ctx.stroke();
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [analyser, isListening]);
 
   const {
     selectedLanguage,
@@ -172,6 +229,24 @@ function VoiceController() {
           ) : "Tap to Speak"}
         </span>
       </div>
+
+      {/* Audio Waveform Visualizer Canvas */}
+      {isListening && analyser && (
+        <div style={{ display: "flex", justifyContent: "center", width: "100%", margin: "0 0 20px 0" }}>
+          <canvas
+            ref={canvasRef}
+            width={300}
+            height={50}
+            style={{
+              background: "rgba(0, 0, 0, 0.2)",
+              border: "1px solid var(--border-glass)",
+              borderRadius: "var(--radius-md)",
+              width: "100%",
+              height: "50px"
+            }}
+          />
+        </div>
+      )}
 
       {/* Error Output alert (Speech or API parsing errors) */}
       {(speechError || apiError) && (
