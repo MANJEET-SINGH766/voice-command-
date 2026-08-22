@@ -40,7 +40,9 @@ function predictCategory(itemName) {
 // Hindi & Hinglish Translation Dictionaries
 const hindiNumbers = {
   "एक": "1", "दो": "2", "तीन": "3", "चार": "4", "पांच": "5", "पाँच": "5",
-  "ek": "1", "do": "2", "teen": "3", "chaar": "4", "paanch": "5"
+  "छह": "6", "सात": "7", "आठ": "8", "नौ": "9", "दस": "10",
+  "ek": "1", "do": "2", "teen": "3", "chaar": "4", "paanch": "5",
+  "chah": "6", "saat": "7", "aath": "8", "nau": "9", "das": "10", "dass": "10"
 };
 
 const hindiNouns = {
@@ -63,18 +65,32 @@ const hindiNouns = {
 const hindiVerbs = {
   "जोड़ो": "add", "jodo": "add", "chahiye": "add", "lao": "add", "daloge": "add",
   "हटाओ": "remove", "hatao": "remove", "nikalo": "remove", "kam": "remove",
-  "ढूंढो": "find", "dhundho": "find", "khojo": "find", "dikhao": "find"
+  "ढूंढो": "find", "dhundho": "find", "khojo": "find", "dikhao": "find",
+  "बदलो": "update", "badlo": "update", "karo": "update", "change": "update"
 };
 
 // Translates and restructures Hindi (SOV) into English (SVO) order
 function normalizeHindi(text) {
   let cleaned = text.toLowerCase().trim();
 
-  // Check if verbs exist at the end of the sentence
+  // Replace Hinglish verb helper phrases globally
+  cleaned = cleaned
+    .replace(/\b(?:kar\s+do|kar\s+de|kar\s+dena)\b/gi, "")
+    .replace(/\b(?:de\s+do|de\s+de|de\s+dena)\b/gi, "")
+    .replace(/\b(?:add\s+kar\s+do|add\s+kar\s+de|add\s+kar\s+dena|add\s+karo)\b/gi, "add")
+    .replace(/\b(?:delete\s+kar\s+do|delete\s+kar\s+de|delete\s+kar\s+dena|delete\s+karo)\b/gi, "delete")
+    .replace(/\b(?:remove\s+kar\s+do|remove\s+kar\s+de|remove\s+kar\s+dena|remove\s+karo)\b/gi, "remove")
+    .replace(/\b(?:update\s+kar\s+do|update\s+kar\s+de|update\s+kar\s+dena|update\s+karo)\b/gi, "update")
+    .replace(/\b(?:change\s+kar\s+do|change\s+kar\s+de|change\s+kar\s+dena|change\s+karo)\b/gi, "change")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Check if verbs exist in the sentence
   let action = null;
-  const addRegex = /\b(?:जोड़ो|jodo|chahiye|lao|add\s+karo|daloge)\b$/i;
-  const removeRegex = /\b(?:हटाओ|hatao|nikalo|delete\s+karo|kam\s+karo)\b$/i;
-  const searchRegex = /\b(?:ढूंढो|dhundho|khojo|search\s+karo|dikhao)\b$/i;
+  const addRegex = /\b(?:जोड़ो|jodo|chahiye|lao|add|daloge)\b/i;
+  const removeRegex = /\b(?:हटाओ|hatao|nikalo|delete|kam)\b/i;
+  const searchRegex = /\b(?:ढूंढो|dhundho|khojo|search|dikhao|dikhado|dikha\s+do)\b/i;
+  const updateRegex = /\b(?:बदलो|badlo|change|update|set)\b/i;
 
   if (addRegex.test(cleaned)) {
     action = "add";
@@ -85,6 +101,19 @@ function normalizeHindi(text) {
   } else if (searchRegex.test(cleaned)) {
     action = "find";
     cleaned = cleaned.replace(searchRegex, "").trim();
+  } else if (updateRegex.test(cleaned)) {
+    const updateMatch = cleaned.match(updateRegex);
+    if (updateMatch) {
+      action = "update";
+      const trailingNumberMatch = cleaned.slice(updateMatch.index + updateMatch[0].length).match(/\s*(\d+(?:\.\d+)?)/);
+      const numberStr = trailingNumberMatch ? " " + trailingNumberMatch[1] : "";
+      
+      cleaned = cleaned.replace(updateRegex, "").trim();
+      if (trailingNumberMatch) {
+        cleaned = cleaned.replace(trailingNumberMatch[0], "").trim();
+      }
+      cleaned = cleaned + numberStr;
+    }
   }
 
   // Tokenize remainder text and map keywords
@@ -92,13 +121,40 @@ function normalizeHindi(text) {
   const mapped = words.map(word => {
     if (hindiNumbers[word]) return hindiNumbers[word];
     if (hindiNouns[word]) return hindiNouns[word];
-    // Strip Hindi grammatical helper words
-    if (["ko", "se", "mera", "mere", "hi", "ki", "ka", "aur", "karo", "please"].includes(word)) return "";
+    // Strip Hindi grammatical helper words, pronouns, and fillers
+    if (["ko", "se", "mera", "mere", "hi", "ki", "ka", "aur", "karo", "please", "mujhe", "hume", "humein", "dena", "de", "kar"].includes(word)) return "";
     return word;
   }).filter(w => w !== "");
 
   // Rebuild in SVO order (e.g. "add 2 apple")
   if (action) {
+    if (action === "update") {
+      let numericIndex = mapped.findIndex(w => /^\d+(?:\.\d+)?$/.test(w));
+      if (numericIndex !== -1) {
+        const num = mapped[numericIndex];
+        mapped.splice(numericIndex, 1);
+        return `update ${mapped.join(" ")} to ${num}`;
+      }
+    }
+
+    let numericIndex = mapped.findIndex((w, idx) => {
+      if (/^\d+(?:\.\d+)?$/.test(w)) {
+        if (idx > 0) {
+          const prev = mapped[idx - 1].toLowerCase();
+          if (["under", "below", "less", "sasta"].includes(prev)) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return false;
+    });
+
+    if (numericIndex > 0) {
+      const num = mapped[numericIndex];
+      mapped.splice(numericIndex, 1);
+      mapped.unshift(num);
+    }
     return `${action} ${mapped.join(" ")}`;
   }
   return mapped.join(" ");
@@ -134,8 +190,8 @@ function parseWithRegex(text) {
     result.intent = "SEARCH_PRODUCT";
     let searchTerms = searchMatch[1];
 
-    // Extract price filter (e.g. "under $5" or "under 200 rupees")
-    const priceRegex = /\b(?:under|less\s+than|below|sasta)\s+(?:\$|rs\.?|₹)?\s*(\d+(?:\.\d+)?)\b/i;
+    // Extract price filter (e.g. "under $5" or "under 200 rupees" or "under 5 dollars")
+    const priceRegex = /\b(?:under|less\s+than|below|sasta)\s+(?:\$|rs\.?|₹)?\s*(\d+(?:\.\d+)?)\s*(?:dollars?|rupees?|bucks?|₹)?\b/i;
     const priceMatch = searchTerms.match(priceRegex);
     if (priceMatch) {
       result.maxPrice = parseFloat(priceMatch[1]);
@@ -153,6 +209,16 @@ function parseWithRegex(text) {
     }
 
     result.item = searchTerms.replace(/\b(?:organic|fresh|gluten\s+free)\b/gi, "").replace(/\s+/g, " ").trim();
+    return result;
+  }
+
+  // 5. UPDATE_QTY Intent
+  // e.g. "Update milk to 5" or "Change quantity of apples to 3" or "Set milk to 2"
+  const updateMatch = cleaned.match(/^(?:update|change|set)\s+(?:quantity\s+of\s+)?(.+?)\s+(?:to|qty|quantity)?\s+(\d+(?:\.\d+)?)$/i);
+  if (updateMatch) {
+    result.intent = "UPDATE_QTY";
+    result.item = updateMatch[1].replace(/\b(?:from\s+my\s+(?:shopping\s+)?list|please)\b/gi, "").trim();
+    result.quantity = parseFloat(updateMatch[2]);
     return result;
   }
 
